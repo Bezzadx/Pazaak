@@ -1,6 +1,7 @@
 import math
 import time
 from dice import *
+import Helper_Functions as h 
 
 class Deck():
     def __init__(self, cards = None):
@@ -10,10 +11,12 @@ class Deck():
             self.cards = [roll(6), roll(6), roll(6), roll(6)]
     
     def __str__(self):
-        return (str(self.cards))
+        dummy = [card for card in self.cards if card != None] 
+        return str(dummy)
     
     def __repr__(self):
-        return (str(self.cards))
+        dummy = [card for card in self.cards if card != none] 
+        return str(dummy)
         
     def check(self, check_cards = []):
         for card in self.cards:
@@ -34,6 +37,14 @@ class Deck():
                     break
         
         return indices
+        
+    def get_length(self):
+        counter = 0
+        for card in self.cards:
+            if card:
+                counter += 1
+        
+        return counter
 
 class human():
     def __init__(self, name = "Greedo", hand = Deck()):
@@ -46,6 +57,9 @@ class human():
             self.hand = hand
         else:
             self.hand = Deck()
+            
+        self.board = None
+        self.order = None
     
     def __str__(self):
         return self.name
@@ -56,8 +70,8 @@ class human():
     def assign(self):
         while True:
             print("Deck: " + str(self.hand))
-            x = int(input("Select first positive card: "))
-            y = int(input("Select second positive card: "))
+            x = h.get_int("select first positive card: ", sign = 1)
+            y = h.get_int("select second positive card: ", sign = 1)
             
             if self.hand.check([x, y]):
                 indices = self.hand.get_indices([x,y])
@@ -84,7 +98,7 @@ class human():
     def place(self):
         print("Available cards are: " + str(self.hand))
         while True:
-            card = int(input("Select a card or enter 0 if you do not wish to play a card: "))
+            card = h.get_int("Select a card or enter 0 if you do not wish to play a card: ", sign = 1)
             if self.hand.check([card]):
                 index = self.hand.get_indices([card])[0]
                 self.hand.cards[index] = None
@@ -103,6 +117,100 @@ class human():
         else:
             return False
     
+
+class bot():
+    def __init__(self, name = "C3-PO", hand = Deck()):
+        if isinstance(name, str):
+            self.name = name
+        else:
+            self.name = str(name)
+        
+        if isinstance(hand, Deck) and len(hand.cards) == 4:
+            self.hand = hand
+        else:
+            self.hand = Deck()
+        
+        self.board = None
+        self.order = None
+        
+    def __str__(self):
+        return self.name
+        
+    def __repr__(self):
+        return self.name
+    
+    def assign(self):
+        self.hand.cards[2] = -self.hand.cards[2]
+        self.hand.cards[3] = -self.hand.cards[3]
+        
+    def place(self):
+        
+        card = 0
+        if self.board.stick[1 - self.order]:
+            target_range = range(self.board.round_score[1 - self.order], 21)
+            
+            if self.board.round_score[self.order] in target_range:
+                card = 0
+            else:
+                candidates = set()
+                for card in self.board.available_actions():
+                    if (self.board.round_score[self.order] + card) in target_range:
+                        candidates.add(card)
+                
+                if candidates:
+                    card = max(candidates)
+                    index = self.hand.get_indices([card])[0]
+                    self.hand.cards[index] = None
+                    
+                else:
+                    card = 0
+        
+        else:
+            target_range = range(18, 21)
+            
+            if self.board.round_score[self.order] in target_range:
+                card = 0
+            else:
+                candidates = set()
+                for card in self.board.available_actions():
+                    if (self.board.round_score[self.order] + card) in target_range:
+                        candidates.add(card)
+                
+                if candidates:
+                    card = max(candidates)
+                    index = self.hand.get_indices([card])[0]
+                    self.hand.cards[index] = None
+                
+                else:
+                    card = 0
+        
+        if card:
+            print(self.name + " plays a " + str(card))
+        else:
+            print(self.name + " does not play a card")
+        
+        return card
+    
+    def stick(self):
+        if self.board.stick[1 - self.order]:
+            target_range = range(self.board.round_score[1 - self.order], 21)
+            
+            if self.board.round_score[self.order] in target_range:
+                print(self.name + "sticks.")
+                return True
+            
+            else:
+                return False
+        
+        else:
+            target_range = range(18,21)
+            
+            if self.board.round_score[self.order] in target_range:
+                return True
+            
+            else:
+                return False
+
 
 class pazaak():
     
@@ -136,7 +244,8 @@ class pazaak():
         actions.add(0)
         
         for card in self.players[self.player].hand.cards:
-            actions.add(card)
+            if card is not None:
+                actions.add(card)
         
         return actions
     
@@ -148,6 +257,15 @@ class pazaak():
         else:
             return 1
             
+    
+    def opponent(self, player):
+        if player == self.player0:
+            return self.player1
+        elif player == self.player1:
+            return self.player0
+        else:
+            raise ValueError
+    
     def switch_player(self):
         self.player = pazaak.other_player(self.player)
     
@@ -169,8 +287,9 @@ class pazaak():
         #Declare winner if a player has won their third round
         if self.game_score[player] == 3:
             self.winner = player
-            return player
             print("The winner is " + str(self.players[player]))
+            return player
+            
         else:
             return None
 
@@ -182,10 +301,16 @@ def play(player0 = human(name = "Han"), player1 = human(name = "Greedo")):
     hand1 = Deck(rolln(6, 1, 4))
     
     player0.hand = hand0
+    player0.order = 0
+    
     player1.hand = hand1
+    player1.order = 1
     
     #create new game
     game = pazaak(player0, player1)
+    
+    player0.board = game
+    player1.board = game
     
     player0.assign()
     player1.assign()
@@ -272,4 +397,88 @@ def play(player0 = human(name = "Han"), player1 = human(name = "Greedo")):
         
         
             
+
+def test(test_player = human(name = "Han"), opponent = bot(name = "C3-PO"), round_score = None, game_score = None, opponent_stick = None, hand_initialize = True):
+    
+    #Initialize hands
+    if hand_initialize == True:
+        cards = []
+        print("What cards is " + str(test_player) + " holding?\n")
+        for i in range(4):
+            card = h.get_int("Card " + str(i) + ":\n", sign = 1)
+            if card:
+                cards.append(card)
+            else:
+                cards.append(None)
+        test_player.hand = Deck(cards)
+    
+        test_player.assign()
+    
+    else:
+        print("Randomly generating a full hand...")
+        test_hand = Deck(rolln(6, 1, 4))
+        test_player.hand = test_hand
+        test_player.assign()
+    
+    opponent_hand = Deck(rolln(6, 1, 4))
+    opponent.hand = opponent_hand
+    opponent.assign()
+    
+    
+    test_player.order = 0
+    opponent.order = 1
+        
+    
+    #create new game
+    game = pazaak(test_player, opponent)
+    
+    test_player.board = game
+    opponent.board = game
+
+    ###INITIALIZE GAME STATE
+    #round score
+    if round_score == None:
+        round_score0 = h.get_int(str(test_player) + "'s round score:\n", sign = 1)
+        round_score1 = h.get_int(str(opponent) + "'s round score:\n", sign = 1)
+        game.round_score = [round_score0, round_score1]
+        
+    else:
+        if not isinstance(round_score, list):
+            raise ValueError
+        elif len(round_score) != 2:
+            raise ValueError
+        else:
+            game.round_score = round_score
+    
+    #game score
+    if game_score == None:
+        game_score0 = h.get_int(str(test_player) + "'s game score:\n", sign = 1)
+        game_score1 = h.get_int(str(opponent) + "'s game score:\n", sign = 1)
+        game.game_score = [game_score0, game_score1]
+    
+    else:
+        if not isinstance(game_score, list):
+            raise ValueError
+        elif len(game_score) != 2:
+            raise ValueError
+        else:
+            game.game_score = game_score
+    
+    #opponent stick
+    if not isinstance(opponent_stick, bool):
+        game.stick[1] = h.get_bool("Has " + str(opponent) + " stuck?\n")
+    else:
+        game.stick[1] = opponent_stick
+        
+    
+    #make a move
+    connective = " is on "
+    if game.stick[1]:
+        connective = " has stuck on "
+        
+    print(str(opponent) + connective + str(game.round_score[1]))
+    print(str(test_player) + " to play, on a score of " + str(game.round_score[0]))
+    
+    placed_card = game.players[game.player].place()
+    game.round_score[game.player] += placed_card
     
