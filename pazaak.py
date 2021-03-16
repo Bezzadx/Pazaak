@@ -2,6 +2,8 @@ from pazaak_play_game import *
 from pazaak_human import *
 from pazaak_bot import *
 from pazaak_ai import *
+from pazaak_bot_plus import *
+from pazaak_ai_plus import *
 from pazaak_performance_test import *
 from pazaak_train_AI import *
 
